@@ -131,7 +131,7 @@ void odbc_statement_backend::prepare(std::string const & query,
         query_ += "?";
     }
 
-    SQLRETURN rc = SQLPrepare(hstmt_, (SQLCHAR*)query_.c_str(), (SQLINTEGER)query_.size());
+    SQLRETURN rc = SQLPrepareA(hstmt_, (SQLCHAR*)query_.c_str(), (SQLINTEGER)query_.size());
     if (is_odbc_error(rc))
     {
         throw odbc_soci_error(SQL_HANDLE_STMT, hstmt_,
@@ -269,7 +269,7 @@ void odbc_statement_backend::describe_column(int colNum, data_type & type,
     SQLSMALLINT decDigits;
     SQLSMALLINT isNullable;
 
-    SQLRETURN rc = SQLDescribeCol(hstmt_, static_cast<SQLUSMALLINT>(colNum),
+    SQLRETURN rc = SQLDescribeColA(hstmt_, static_cast<SQLUSMALLINT>(colNum),
                                   colNameBuffer, 2048,
                                   &colNameBufferOverflow, &dataType,
                                   &colSize, &decDigits, &isNullable);
@@ -323,7 +323,7 @@ std::size_t odbc_statement_backend::column_size(int colNum)
     SQLSMALLINT decDigits;
     SQLSMALLINT isNullable;
 
-    SQLRETURN rc = SQLDescribeCol(hstmt_, static_cast<SQLUSMALLINT>(colNum),
+    SQLRETURN rc = SQLDescribeColA(hstmt_, static_cast<SQLUSMALLINT>(colNum),
                                   colNameBuffer, 2048,
                                   &colNameBufferOverflow, &dataType,
                                   &colSize, &decDigits, &isNullable);

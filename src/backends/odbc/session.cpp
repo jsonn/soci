@@ -73,7 +73,7 @@ odbc_session_backend::odbc_session_backend(
 #endif // _WIN32
 
     std::string const & connectString = parameters.get_connect_string();
-    rc = SQLDriverConnect(hdbc_, hwnd_for_prompt,
+    rc = SQLDriverConnectA(hdbc_, hwnd_for_prompt,
                           (SQLCHAR *)connectString.c_str(),
                           (SQLSMALLINT)connectString.size(),
                           outConnString, 1024, &strLength,
@@ -270,7 +270,7 @@ odbc_session_backend::get_database_product()
 
     char product_name[1024];
     SQLSMALLINT len = sizeof(product_name);
-    SQLRETURN rc = SQLGetInfo(hdbc_, SQL_DBMS_NAME, product_name, len, &len);
+    SQLRETURN rc = SQLGetInfoA(hdbc_, SQL_DBMS_NAME, product_name, len, &len);
     if (is_odbc_error(rc))
     {
         throw odbc_soci_error(SQL_HANDLE_DBC, henv_,
