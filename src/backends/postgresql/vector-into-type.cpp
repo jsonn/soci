@@ -102,7 +102,18 @@ void postgresql_vector_into_type_backend::post_fetch(bool gotData, indicator * i
                 set_invector_(data_, i, *buf);
                 break;
             case x_stdstring:
-                set_invector_<std::string>(data_, i, buf);
+                if (PQftype(statement_.result_, pos) == 17)
+                {
+#ifdef SOCI_CXX_C11
+                    set_invector_<std::string>(data_, i, std::move(parse_bytea(buf)));
+#else
+                    set_invector_<std::string>(data_, i, parse_bytea(buf));
+#endif
+                }
+                else
+                {
+                    set_invector_<std::string>(data_, i, buf);
+                }
                 break;
             case x_short:
                 {

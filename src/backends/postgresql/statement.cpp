@@ -9,6 +9,7 @@
 #include "soci/postgresql/soci-postgresql.h"
 #include "soci/soci-platform.h"
 #include <libpq/libpq-fs.h> // libpq
+#include <cassert>
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
@@ -21,6 +22,8 @@
 #define SOCI_POSTGRESQL_NOBINDBYNAME
 #endif // SOCI_POSTGRESQL_NOBINDBYNAME
 #endif // SOCI_POSTGRESQL_NOPARAMS
+
+#define SOCI_POSTGRESQL_NOPREPARE
 
 #ifdef _MSC_VER
 #pragma warning(disable:4355)
@@ -252,6 +255,7 @@ postgresql_statement_backend::execute(int number)
             for (int i = 0; i != numberOfExecutions; ++i)
             {
                 std::vector<char *> paramValues;
+                std::vector<Oid> paramTypes;
 
                 if (useByPosBuffers_.empty() == false)
                 {
@@ -264,8 +268,11 @@ postgresql_statement_backend::execute(int number)
                              end = useByPosBuffers_.end();
                          it != end; ++it)
                     {
-                        char ** buffers = it->second;
+                        char ** buffers = it->second.first;
+                        Oid *buffersType = it->second.second;
+                        assert(buffersType[i] == 0);
                         paramValues.push_back(buffers[i]);
+                        paramTypes.push_back(buffersType[i]);
                     }
                 }
                 else
@@ -286,8 +293,11 @@ postgresql_statement_backend::execute(int number)
                             msg += ").";
                             throw soci_error(msg);
                         }
-                        char ** buffers = b->second;
+                        char ** buffers = b->second.first;
+                        Oid *buffersType = b->second.second;
+                        assert(buffersType[i] == 0);
                         paramValues.push_back(buffers[i]);
+                        paramTypes.push_back(buffersType[i]);
                     }
                 }
 
@@ -301,7 +311,7 @@ postgresql_statement_backend::execute(int number)
 
                 result_.reset(PQexecParams(session_.conn_, query_.c_str(),
                     static_cast<int>(paramValues.size()),
-                    NULL, &paramValues[0], NULL, NULL, 0));
+                    &paramTypes[0], &paramValues[0], NULL, NULL, 0));
 #else
                 if (stType_ == st_repeatable_query)
                 {
@@ -319,7 +329,7 @@ postgresql_statement_backend::execute(int number)
 
                     result_.reset(PQexecParams(session_.conn_, query_.c_str(),
                         static_cast<int>(paramValues.size()),
-                        NULL, &paramValues[0], NULL, NULL, 0));
+                        &paramTypes[0], &paramValues[0], NULL, NULL, 0));
                 }
 
 #endif // SOCI_POSTGRESQL_NOPREPARE

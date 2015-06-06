@@ -31,7 +31,6 @@ using namespace soci;
 using namespace soci::details;
 using namespace soci::details::postgresql;
 
-
 void postgresql_standard_into_type_backend::define_by_pos(
     int & position, void * data, exchange_type type)
 {
@@ -92,7 +91,18 @@ void postgresql_standard_into_type_backend::post_fetch(
             exchange_type_cast<x_char>(data_) = *buf;
             break;
         case x_stdstring:
-            exchange_type_cast<x_stdstring>(data_) = buf;
+            if (PQftype(statement_.result_, pos) == 17)
+            {
+#ifdef SOCI_CXX_C11
+                exchange_type_cast<x_stdstring>(data_) = std::move(parse_bytea(buf));
+#else
+                exchange_type_cast<x_stdstring>(data_) = parse_bytea(buf);
+#endif
+            }
+            else
+            {
+                exchange_type_cast<x_stdstring>(data_) = buf;
+            }
             break;
         case x_short:
             exchange_type_cast<x_short>(data_) = string_to_integer<short>(buf);

@@ -84,3 +84,106 @@ void soci::details::postgresql::parse_std_tm(char const * buf, std::tm & t)
 
     details::mktime_from_ymdhms(t, year, month, day, hour, minute, second);
 }
+
+static const unsigned char hex_convert[256] = {
+    255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255,
+      0,   1,   2,   3,   4,   5,   6,   7,
+      8,   9, 255, 255, 255, 255, 255, 255,
+    255,  10,  11,  12,  13,  14,  15, 255,
+    255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255,
+    255,  10,  11,  12,  13,  14,  15, 255,
+    255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255,
+
+    255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255,
+};
+
+std::string soci::details::postgresql::parse_bytea(const char *buf_)
+{
+    std::string dest;
+    const unsigned char *buf = (const unsigned char *)buf_;
+    if (buf[0] == '\\' && buf[1] == 'x')
+    {
+        buf += 2;
+        dest.reserve(strlen(buf_) / 2 - 1);
+        while (*buf)
+        {
+            if (*buf == ' ')
+            {
+               ++buf;
+               continue;
+            }
+            unsigned char d1 = hex_convert[buf[0]];
+            unsigned char d2 = hex_convert[buf[1]];
+            if (d1 == 255 || d2 == 255)
+            {
+                throw soci_error("Invalid bytea encoding found.");
+            }
+            dest.push_back(d1 * 16 + d2);
+            buf += 2;
+        }
+    }
+    else
+    {
+        dest.reserve(strlen(buf_));
+        while (*buf) {
+            if (*buf != '\\')
+            {
+                dest.push_back(*buf++);
+                continue;
+            }
+            ++buf;
+            if (*buf == '\\')
+            {
+                dest.push_back(*buf++);
+                continue;
+            }
+            if (buf[0] < '0' || buf[0] > '3' ||
+                buf[1] < '0' || buf[1] > '7' ||
+                buf[2] < '0' || buf[2] > '7')
+            {
+                throw soci_error("Invalid bytea encoding found.");
+            }
+            dest.push_back(buf[0] * 64 + buf[1] * 8 + buf[2]);
+            buf += 3;
+        }
+    }
+    return dest;
+}
+
+char *soci::details::postgresql::encode_bytea(const std::string &s)
+{
+    static const char hex_digits[] = "0123456789abcdef";
+    char *buf = new char[s.size() * 2 + 2];
+    buf[0] = '\\';
+    buf[1] = 'x';
+    for (std::size_t i = 0; i < s.size(); ++i)
+    {
+      buf[2 * i + 2] = hex_digits[(unsigned char)s[i] / 16];
+      buf[2 * i + 3] = hex_digits[(unsigned char)s[i] % 16];
+    }
+    return buf;
+}

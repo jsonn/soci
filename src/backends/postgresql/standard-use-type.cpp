@@ -12,6 +12,7 @@
 #include "soci/soci-platform.h"
 #include "soci-dtocstr.h"
 #include "soci-exchange-cast.h"
+#include "common.h"
 #include <libpq/libpq-fs.h> // libpq
 #include <cctype>
 #include <cstdio>
@@ -64,6 +65,7 @@ void postgresql_standard_use_type_backend::pre_use(indicator const * ind)
     }
     else
     {
+        oid_ = 0;
         // allocate and fill the buffer with text-formatted client data
         switch (type_)
         {
@@ -77,8 +79,16 @@ void postgresql_standard_use_type_backend::pre_use(indicator const * ind)
         case x_stdstring:
             {
                 std::string const& s = exchange_type_cast<x_stdstring>(data_);
-                buf_ = new char[s.size() + 1];
-                std::strcpy(buf_, s.c_str());
+                if (strlen(s.c_str()) == s.size())
+                {
+                    buf_ = new char[s.size() + 1];
+                    std::memcpy(buf_, s.c_str(), s.size() + 1);
+                }
+                else
+                {
+                    buf_ = soci::details::postgresql::encode_bytea(s);
+                    oid_ = 17;
+                }
             }
             break;
         case x_short:
@@ -173,12 +183,12 @@ void postgresql_standard_use_type_backend::pre_use(indicator const * ind)
     if (position_ > 0)
     {
         // binding by position
-        statement_.useByPosBuffers_[position_] = &buf_;
+        statement_.useByPosBuffers_[position_] = std::make_pair(&buf_, &oid_);
     }
     else
     {
         // binding by name
-        statement_.useByNameBuffers_[name_] = &buf_;
+        statement_.useByNameBuffers_[name_] = std::make_pair(&buf_, &oid_);
     }
 }
 

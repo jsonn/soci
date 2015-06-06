@@ -115,6 +115,12 @@ T string_to_unsigned_integer(char const * buf)
 // helper function for parsing datetime values
 void parse_std_tm(char const * buf, std::tm & t);
 
+// helper function for parsing bytea values
+std::string parse_bytea(const char *buf);
+
+// helper function for encoding binary string
+char *encode_bytea(const std::string &s);
+
 // helper for vector operations
 template <typename T>
 std::size_t get_vector_size(void * p)

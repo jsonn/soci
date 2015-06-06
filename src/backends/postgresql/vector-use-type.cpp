@@ -56,6 +56,7 @@ void postgresql_vector_use_type_backend::pre_use(indicator const * ind)
     for (size_t i = 0; i != vsize; ++i)
     {
         char * buf;
+        Oid oid = 0;
 
         // the data in vector can be either i_ok or i_null
         if (ind != NULL && ind[i] == i_null)
@@ -84,8 +85,16 @@ void postgresql_vector_use_type_backend::pre_use(indicator const * ind)
                         = static_cast<std::vector<std::string> *>(data_);
                     std::vector<std::string> & v = *pv;
 
-                    buf = new char[v[i].size() + 1];
-                    std::strcpy(buf, v[i].c_str());
+                    if (strlen(v[i].c_str()) == v[i].size())
+                    {
+                        buf = new char[v[i].size() + 1];
+                        std::memcpy(buf, v[i].c_str(), v[i].size() + 1);
+                    }
+                    else
+                    {
+                        buf = encode_bytea(v[i]);
+                        oid = 17;
+                    }
                 }
                 break;
             case x_short:
@@ -170,17 +179,18 @@ void postgresql_vector_use_type_backend::pre_use(indicator const * ind)
         }
 
         buffers_.push_back(buf);
+        types_.push_back(oid);
     }
 
     if (position_ > 0)
     {
         // binding by position
-        statement_.useByPosBuffers_[position_] = &buffers_[0];
+        statement_.useByPosBuffers_[position_] = std::make_pair(&buffers_[0], &types_[0]);
     }
     else
     {
         // binding by name
-        statement_.useByNameBuffers_[name_] = &buffers_[0];
+        statement_.useByNameBuffers_[name_] = std::make_pair(&buffers_[0], &types_[0]);
     }
 }
 
